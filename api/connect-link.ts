@@ -1,37 +1,46 @@
+// Minimal handler that doesn't require extra Node typings.
+// We just declare `process` so TypeScript doesn't complain.
+declare var process: any;
+
 import { PipedreamClient } from "@pipedream/sdk";
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const client = new PipedreamClient({
   clientId: process.env.PIPEDREAM_CLIENT_ID!,
   clientSecret: process.env.PIPEDREAM_CLIENT_SECRET!,
   projectId: process.env.PIPEDREAM_PROJECT_ID!,
-  projectEnvironment: "production"
+  projectEnvironment: "production",
 });
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "POST only" });
+    res.status(405).json({ error: "POST only" });
+    return;
   }
 
   try {
-    const { userId } = req.body;
+    const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+    const userId = body?.userId;
 
     if (!userId) {
-      return res.status(400).json({ error: "Missing userId" });
+      res.status(400).json({ error: "Missing userId" });
+      return;
     }
 
-    // Create a connect token for this specific HOA user
+    // Ask Pipedream to create a Connect token for this HOA user
     const { token, connectLinkUrl } = await client.tokens.create({
-      externalUserId: userId
+      externalUserId: userId,
     });
 
-    // Build the URL they click
+    // Build the link they can click to connect Gmail
     const link =
       connectLinkUrl ||
       `https://pipedream.com/_static/connect.html?token=${token}&app=gmail`;
 
-    return res.status(200).json({ link });
+    res.status(200).json({ link });
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    console.error("Error creating connect token:", err);
+    res
+      .status(500)
+      .json({ error: err?.message || "Internal server error creating token" });
   }
 }
