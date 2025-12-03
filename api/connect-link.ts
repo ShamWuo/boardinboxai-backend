@@ -1,14 +1,13 @@
-// Minimal handler that doesn't require extra Node typings.
-// We just declare `process` so TypeScript doesn't complain.
+// api/connect-link.ts
 declare var process: any;
 
 import { PipedreamClient } from "@pipedream/sdk";
 
 const client = new PipedreamClient({
+  projectEnvironment: "production", // or "development" if that’s what your project uses
   clientId: process.env.PIPEDREAM_CLIENT_ID!,
   clientSecret: process.env.PIPEDREAM_CLIENT_SECRET!,
-  projectId: process.env.PIPEDREAM_PROJECT_ID!,
-  projectEnvironment: "production",
+  projectId: process.env.PIPEDREAM_PROJECT_ID!
 });
 
 export default async function handler(req: any, res: any) {
@@ -26,21 +25,23 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    // Ask Pipedream to create a Connect token for this HOA user
-    const { token, connectLinkUrl } = await client.tokens.create({
-      externalUserId: userId,
+    // 1) Ask Pipedream for a connect token for this user
+    const { connectLinkUrl } = await client.tokens.create({
+      externalUserId: userId
     });
 
-    // Build the link they can click to connect Gmail
-    const link =
-      connectLinkUrl ||
-      `https://pipedream.com/_static/connect.html?token=${token}&app=gmail`;
+    if (!connectLinkUrl) {
+      res.status(500).json({ error: "No connectLinkUrl returned from Pipedream" });
+      return;
+    }
 
-    res.status(200).json({ link });
+    // 2) Add app=gmail just like the doc’s React demo
+    const url = new URL(connectLinkUrl);
+    url.searchParams.set("app", "gmail");
+
+    res.status(200).json({ link: url.toString() });
   } catch (err: any) {
     console.error("Error creating connect token:", err);
-    res
-      .status(500)
-      .json({ error: err?.message || "Internal server error creating token" });
+    res.status(500).json({ error: err?.message || "Internal error creating token" });
   }
 }
