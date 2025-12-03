@@ -1,0 +1,17 @@
+{
+  "name": "boardinboxai-backend",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'No build step required'",
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "@pipedream/sdk": "^0.3.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
